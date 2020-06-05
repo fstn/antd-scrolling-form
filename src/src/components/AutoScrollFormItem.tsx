@@ -1,9 +1,9 @@
 import React, {useContext, useEffect, useRef, useState} from 'react';
 import styled from 'styled-components'
-import {FormInstance, FormItemProps} from "antd/es/form";
 import {AppContextState, AutoScrollFormContext} from "./AutoScrollFormContext";
 import {uuid} from 'uuidv4';
 import { Form } from 'antd';
+import {FormInstance, FormItemProps} from "antd/lib/form";
 // @ts-ignore
 const Style = styled.div.withConfig({displayName: "AutoScrollFormItem"})
 // language=LESS prefix=*{ suffix=}
