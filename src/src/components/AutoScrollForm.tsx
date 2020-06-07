@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import ReactDOM from 'react-dom';
 import styled, {FlattenInterpolation, ThemeProps} from 'styled-components'
-import {AutoScrollFormContext, AutoScrollFormContextState} from "./AutoScrollFormContext";
+import {AutoScrollFormContext, AutoScrollFormContextState, Field} from "./AutoScrollFormContext";
 import {FormProps} from "antd/es/form";
 import {getFieldId, toArray} from "antd/es/form/util";
 import ButtonGroup from "antd/es/button/button-group";
@@ -29,21 +29,24 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
 
     const initialState = {
         focusedItemId: "",
-        fields: [] as string[],
+        fields: [] as Field[],
         form: props.form,
         focusedStyle: props.focusedStyle as any,
         autoScrollFormInstance: {
             removeField: function (id: string, name: string) {
-                previous();
-                setTimeout(()=>dispatch({type: "removeField", payload: {id,name}}),0)
+                dispatch({type: "removeField", payload: {id, name}})
             },
             addField: function (id: string, name: string) {
                 dispatch({type: "addField", payload: {id, name}})
             },
+            updateField: function (id: string, name: string) {
+                dispatch({type: "updateField", payload: {id, name}})
+            },
             focus: function (id: string) {
                 dispatch({type: "focus", payload: id})
             },
-            next: function(){}
+            next: function () {
+            }
         }
     };
 
@@ -56,24 +59,52 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
                 console.debug("addForm")
                 draft.form = action.payload;
                 return
-            case "addField":
-                console.debug("addField")
-                draft.fields.push({id:action.payload.id,name:action.payload.name});
+            case "orderFields":
+                draft.fields.forEach(f => {
+                        // const field = document.getElementById(f.id) as HTMLElement | undefined
+                        f.position = f.field?.getBoundingClientRect().y
+                        return f
+                    }
+                )
+                draft.fields = draft.fields.sort((f1: Field,f2:Field) => f1!.position!-f2!.position!)
                 return
+            case "addField":
+                console.debug("addField", action.payload)
+                const id = action.payload.id
+                const name = action.payload.name
+                const field = document.getElementById(action.payload.id) as HTMLElement | undefined
+                const position = field?.getBoundingClientRect().y
+                draft.fields.push({id, name, field, position});
+                return
+            case "updateField": {
+                console.debug("updateField", action.payload)
+                const id = action.payload.id
+                const name = action.payload.name
+                const field = getNodeForId(id)
+                const existing = draft.fields.find(f => f.id === id)
+                if (existing && existing!.name !== name) {
+                    existing!.name = name
+                }
+                return
+            }
             case "removeField":
-                console.debug("removeField")
-                draft.fields = draft.fields.filter((f:any) => f.id !== action.payload.id);
+                console.debug("removeField", action.payload)
+                draft.fields = draft.fields.filter((f: any) => f.id !== action.payload.id);
                 return
             case "focus":
                 console.debug("focus")
-                if(action.payload !== draft.focusedItemId)
+                if (action.payload !== draft.focusedItemId)
                     draft.focusedItemId = action.payload;
                 return
         }
     }
 
-
     const [state, dispatch] = useImmerReducer<AutoScrollFormContextState>(reducer, initialState)
+
+
+    useEffect(()=>{
+        dispatch({type:"orderFields"})
+    },[state.fields.length])
 
     useEffect(() => {
         console.log("InternalAutoScrollForm ue 1")
@@ -87,28 +118,13 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
     }, [state.fields, dispatch, state.focusedItemId])
 
 
-    type FieldsPositionForId = { id: string, position: number }
-
-    const getOrderedFieldsId: () => FieldsPositionForId[] = useCallback((): FieldsPositionForId[] => {
-        let _fieldsPosition: FieldsPositionForId[] = []
-        for (const field of state.fields) {
-            const _field = document.getElementById(field.id) as HTMLElement | undefined
-            if (!!_field) {
-                _fieldsPosition.push({id:field.id, position: _field.getBoundingClientRect().y})
-            }
-
-        }
-        _fieldsPosition.sort(r => r.position)
-        return _fieldsPosition;
-    }, [state.fields])
-
     const getCurrentPosition = useCallback(function (id?: string) {
         if (!id) {
             id = state.focusedItemId
             console.debug("getCurrentPosition using focusedItemId", state.focusedItemId)
         }
-        let _orderedFieldsIds = getOrderedFieldsId();
-        let _currentPosition = _orderedFieldsIds.findIndex(f => f.id === id)
+        let _orderedFieldsIds = state.fields;
+        let _currentPosition = _orderedFieldsIds.findIndex((f: Field) => f.id === id)
         if (_currentPosition === -1) {
             console.error("Unable to find field with id", id, _orderedFieldsIds)
         }
@@ -121,8 +137,8 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
         if (position === undefined) {
             position = getCurrentPosition()
         }
-        return getOrderedFieldsId().length - 1 > position!;
-    },[getCurrentPosition,getOrderedFieldsId])
+        return state.fields.length - 1 > position!;
+    }, [getCurrentPosition, state.fields])
 
     const hasPrevious = useCallback(function (position?: number) {
         console.debug("hasPrevious")
@@ -130,7 +146,7 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
             position = getCurrentPosition()
         }
         return position! >= 1;
-    },[getCurrentPosition])
+    }, [getCurrentPosition])
 
     function getPreviousPosition(position: number) {
         console.debug("getPreviousPosition")
@@ -143,33 +159,26 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
 
     function getNextId(id: string): string | undefined {
         console.debug("getNextId")
-        let _orderedFieldsIds = getOrderedFieldsId();
-        let _currentPosition = _orderedFieldsIds.findIndex(f => f.id === id)
-        const _nextId = _orderedFieldsIds[getNextPosition(_currentPosition)]?.id
+        let _currentPosition = state.fields.findIndex((f: Field) => f.id === id)
+        const _nextId = state.fields[getNextPosition(_currentPosition)]?.id
         return _nextId
     }
 
     function getPreviousId(id: string): string | undefined {
         console.debug("getPreviousId")
-        let _orderedFieldsIds = getOrderedFieldsId();
-        let _currentPosition = _orderedFieldsIds.findIndex(f => f.id === id)
-        const _previousId = _orderedFieldsIds[getPreviousPosition(_currentPosition)]?.id
+        let _currentPosition = state.fields.findIndex((f: Field) => f.id === id)
+        const _previousId = state.fields[getPreviousPosition(_currentPosition)]?.id
         return _previousId
     }
 
     const previous = () => {
-        debugger
         console.debug("previous")
-        const previousId = getPreviousId(state.focusedItemId!)
-        if (!previousId) {
-
+        const previousFieldId = getPreviousId(state.focusedItemId!)
+        if (!previousFieldId) {
+            console.debug("previousField doesn't exists")
             return
         }
-        const position = getCurrentPosition(previousId)
-        const name = state?.fields[position].name
-        const namePath = toArray(name);
-        const fieldId = getFieldId(namePath, state?.form?.__INTERNAL__.name);
-        const node: HTMLElement | null = fieldId ? document.getElementById(fieldId) : null;
+        let node = getNodeForId(previousFieldId);
         node?.focus()
     }
 
@@ -181,32 +190,42 @@ const InternalAutoScrollForm = (props: AutoScrollFormProps) => {
             return position
     }
 
-    const next = () => {
-        console.debug("next")
-        const nextId = getNextId(state.focusedItemId!)
-        if (!nextId) {
-            return
-        }
-        const position = getCurrentPosition(nextId)
+
+    function getNodeForId(fieldId: string) {
+        const position = getCurrentPosition(fieldId)
         const name = state?.fields[position]?.name
         const namePath = toArray(name);
-        const fieldId = getFieldId(namePath, state?.form?.__INTERNAL__.name);
-        let node: HTMLElement | null = fieldId ? document.getElementById(fieldId) : null;
+        const focusableFieldItemId = getFieldId(namePath, state?.form?.__INTERNAL__.name);
+        let node: HTMLElement | null = focusableFieldItemId ? document.getElementById(focusableFieldItemId) : null;
         // if(!node){
-        //     node = fieldId ? document.getElementById(fieldId+"_0") : null;
+        //     node = focusableId ? document.getElementById(focusableId+"_0") : null;
         // }
         if (!node) {
-            node = nextId ? document.getElementById(nextId) : null;
-            node = ((ReactDOM.findDOMNode(node!) as Element).getElementsByClassName('ant-btn')[0] as HTMLElement)
+            const container = fieldId ? document.getElementById(fieldId) : null;
+            node = ((ReactDOM.findDOMNode(container!) as Element).getElementsByClassName('ant-btn')[0] as HTMLElement)
+        } else {
+            if ((node as any).className.indexOf("group") !== -1) {
+                node = (node!.firstChild! as HTMLElement)
+            }
         }
+        return node;
+    }
+
+    const next = () => {
+        console.debug("next")
+        const nextFieldContainerId = getNextId(state.focusedItemId!)
+        if (!nextFieldContainerId) {
+            return
+        }
+        let node = getNodeForId(nextFieldContainerId);
         node?.focus()
     }
 
-    const hasPreviousVal = useMemo(hasPrevious,[hasPrevious])
-    const hasNextVal = useMemo(hasNext,[hasNext])
+    const hasPreviousVal = useMemo(hasPrevious, [hasPrevious])
+    const hasNextVal = useMemo(hasNext, [hasNext])
     return (
         <Style ref={ref}>
-            {JSON.stringify(state)}
+            {/*{JSON.stringify(state)}*/}
             <div style={{height: "50vh"}}></div>
             <AutoScrollFormContext.Provider value={[state, dispatch]}>
                 {props.children}

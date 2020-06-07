@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 import AutoScrollFormItem from "./components/AutoScrollFormItem";
-import {AutoComplete, Button, Card, Form, Input, Radio} from "antd";
+import {AutoComplete, Button, Card, DatePicker, Form, Input, InputNumber, Radio, Select, Switch} from "antd";
 import AutoScrollForm from "./components/AutoScrollForm";
 import 'antd/dist/antd.css';
 import {useForm} from "antd/es/form/util";
@@ -22,11 +22,30 @@ function App() {
                     background-color:${(props: any) => props.focus ? "#EEE" : ""};
                     
                     `}>
+                        <AutoScrollFormItem label={"Country"} name="country" rules={[{type: "string"}]}
+                                            children={(next: any) =>
+                                                <Input placeholder={""}/>}/>
                         <AutoScrollFormItem label={"Genre"} name="gender" children={(next: any) =>
                             <Radio.Group name="radiogroup" defaultValue={"m"} onChange={next}>
                                 <Radio value={"m"}>Homme</Radio>
                                 <Radio value={"f"}>Femme</Radio>
                             </Radio.Group>}/>
+                        <AutoScrollFormItem label={"Date"} name="date" children={(next: any) =>
+                            <DatePicker />
+                        }/>
+                        <AutoScrollFormItem label={"Number"} name="number" children={(next: any) =>
+                            <InputNumber />
+                        }/>
+                        <AutoScrollFormItem label={"Switch"} name="switch" children={(next: any) =>
+                            <Switch />
+                        }/>
+                        <AutoScrollFormItem label={"Select"} name="select" children={(next: any) =>
+                            <Select placeholder="Select province">
+                                <Select.Option value="Zhejiang">Zhejiang</Select.Option>
+                                <Select.Option value="Jiangsu">Jiangsu</Select.Option>
+                            </Select>
+                        }/>
+
                         <AutoScrollFormItem label={"Prenom"} name="firstname" children={(next: any) =>
                             <Input placeholder={""}/>}/>
                         <AutoScrollFormItem label={"Nom"} name="lastName" children={(next: any) =>
@@ -51,26 +70,26 @@ function App() {
                                                     name="studies"
                                                     required={false}
                                                     key={field.key}>
-                                                        <>
-                                                            <AutoScrollFormItem
-                                                                {...field}
-                                                                name={[field.name,"content"]}
-                                                                absoluteName={["studies",field.name,"content"]}
-                                                                style={{flex: "2 0 150px"}}
-                                                                validateTrigger={['onChange', 'onBlur']}
-                                                                noStyle  children={(next: any) =>
-                                                                <Input placeholder="/home/"
-                                                                       style={{flex: "2 0 150px"}}/>
-                                                            }/>
-                                                            <MinusCircleOutlined
-                                                                className="dynamic-delete-button"
-                                                                style={{margin: '0 8px'}}
-                                                                onClick={() => {
-                                                                    remove(field.name);
-                                                                }}
-                                                            />
+                                                    <>
+                                                        <AutoScrollFormItem
+                                                            {...field}
+                                                            name={[field.name, "content"]}
+                                                            absoluteName={["studies", field.name, "content"]}
+                                                            style={{flex: "2 0 150px"}}
+                                                            validateTrigger={['onChange', 'onBlur']}
+                                                            noStyle children={(next: any) =>
+                                                            <Input placeholder="/home/"
+                                                                   style={{flex: "2 0 150px"}}/>
+                                                        }/>
+                                                        <MinusCircleOutlined
+                                                            className="dynamic-delete-button"
+                                                            style={{margin: '0 8px'}}
+                                                            onClick={() => {
+                                                                remove(field.name);
+                                                            }}
+                                                        />
 
-                                                        </>
+                                                    </>
                                                 </Form.Item>
                                             )}
                                             <Form.Item>
@@ -89,9 +108,8 @@ function App() {
                                 }}
                             </Form.List>
                         }/>
-                        <Form.Item>
-                            <Button htmlType="submit" type="primary">Submit</Button>
-                        </Form.Item>
+                        <AutoScrollFormItem label={"Submit"} name="submit" children={(next: any) =>
+                            <Button htmlType="submit" type="primary">Submit</Button>}/>
                     </AutoScrollForm>
                 </Form>
             </Card>

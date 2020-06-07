@@ -1,9 +1,8 @@
-import React, {useCallback, useContext, useEffect, useState} from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import styled from 'styled-components'
 import {AutoScrollFormContext, AutoScrollFormContextState} from "./AutoScrollFormContext";
 import {Form} from 'antd';
 import {FormItemProps} from "antd/lib/form";
-import {getFieldId, toArray} from "antd/es/form/util";
 import {uuid} from "uuidv4";
 // @ts-ignore
 const Style = styled.div.withConfig({displayName: "AutoScrollFormItem"})
@@ -18,6 +17,13 @@ export interface AutoScrollFormItemProps extends FormItemProps {
     absoluteName?: string
 }
 
+const getHash = (name: string[] | string | any) => {
+    if (Array.isArray(name)) {
+        return name.join("'")
+    }
+    return name
+}
+
 const AutoScrollFormItem = (props: AutoScrollFormItemProps) => {
     const id = React.useMemo(() => uuid(), [])
     const [context] = useContext<[AutoScrollFormContextState, any]>(AutoScrollFormContext);
@@ -26,41 +32,40 @@ const AutoScrollFormItem = (props: AutoScrollFormItemProps) => {
 
     useEffect(() => {
         const _context = {...context}
-        if (_context?.fields.findIndex((f:any)=>f.id==id) === -1) {
-            // _context?.fieldsRef.push(ref)
-
+        const _existing = _context?.fields.find((f: any) => f.id == id)
+        if (!_existing) {
             _context.autoScrollFormInstance.addField(id, props.absoluteName || props.name as any)
-            // _context?.fieldsName.set(id, ref)
+        } else if (_existing!.name !== props.absoluteName || props.name) {
+            _context.autoScrollFormInstance.updateField(id, props.absoluteName || props.name as any)
         }
         // const newIndex = getCurrentPosition(_context)
         // if (newIndex !== index) {
         //     setIndex(newIndex)
         // }
-    }, [props])
+    }, [getHash(props.absoluteName), getHash(props.name)])
 
 
     // @ts-ignore
     useEffect(() => {
         const _context = {...context}
         return () => {
+            console.debug("removeField use Effect call",id)
             _context.autoScrollFormInstance.removeField(id, props.absoluteName || props.name!)
         };
     }, [])
-
 
 
     useEffect(() => {
         const _focus = context?.focusedItemId === id
         setFocus(_focus)
         if (_focus) {
-            console.log("scroll to ", context.form)
             context?.form?.scrollToField(props.absoluteName || props.name!, {
                 block: "center",
                 behavior: 'smooth',
                 scrollMode: "always"
             })
         }
-    }, [context.focusedItemId, id, props.absoluteName, props.name])
+    }, [context.focusedItemId, id, getHash(props.absoluteName), getHash(props.name)])
 
 
     return (
@@ -69,14 +74,11 @@ const AutoScrollFormItem = (props: AutoScrollFormItemProps) => {
             e.preventDefault()
             e.stopPropagation()
             context.autoScrollFormInstance.focus(id)
-        }}
-        >
-            {index}
+        }}>
             <>
                 <Form.Item {...props} >
                     {props.children(context.autoScrollFormInstance.next)}
                 </Form.Item>
-                {/*<Button onClick={() => next()}>Next</Button>*/}
             </>
         </Style>
     );
